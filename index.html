@@ -26,7 +26,9 @@
             <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">AC</div>
             <div>
                 <h1 class="text-white font-bold text-sm">AURA CHAT</h1>
-                <p class="text-[10px] text-green-400 flex items-center gap-1"><span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span> Live Encryption Active</p>
+                <p class="text-[10px] text-green-400 flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span> Live
+                </p>
             </div>
         </div>
         <button onclick="changeName()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-user-gear"></i></button>
@@ -46,28 +48,18 @@
     </footer>
 
     <script>
-        // 1. YOUR FIREBASE CONFIGURATION
+        // 1. FIXED FIREBASE CONFIGURATION
         const firebaseConfig = {
-            // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyA9416w8O1q6klrhL5IvWKpSIgPr0uehiQ",
-  authDomain: "aurachat-44bd9.firebaseapp.com",
-  projectId: "aurachat-44bd9",
-  storageBucket: "aurachat-44bd9.firebasestorage.app",
-  messagingSenderId: "1028646459032",
-  appId: "1:1028646459032:web:a8951d3effa007cfa2a2ed"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+            apiKey: "AIzaSyA9416w8O1q6klrhL5IvWKpSIgPr0uehiQ",
+            authDomain: "aurachat-44bd9.firebaseapp.com",
+            projectId: "aurachat-44bd9",
+            storageBucket: "aurachat-44bd9.firebasestorage.app",
+            messagingSenderId: "1028646459032",
+            appId: "1:1028646459032:web:a8951d3effa007cfa2a2ed",
+            databaseURL: "https://aurachat-44bd9-default-rtdb.firebaseio.com" // Important: Added your DB URL
         };
 
-        // Initialize Firebase
+        // Initialize Firebase using the Compat method
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         const chatRef = database.ref('messages');
@@ -81,6 +73,7 @@ const app = initializeApp(firebaseConfig);
             if(newName) {
                 username = newName;
                 localStorage.setItem('chat-user', username);
+                location.reload(); // Refresh to update messages identity
             }
         }
 
@@ -102,14 +95,14 @@ const app = initializeApp(firebaseConfig);
             input.value = "";
         });
 
-        // 4. RECEIVING MESSAGES (REAL-TIME)
+        // 4. RECEIVING MESSAGES
         chatRef.on('child_added', (snapshot) => {
             const msg = snapshot.val();
             displayMessage(msg);
         });
 
         function displayMessage(msg) {
-            const window = document.getElementById('chat-window');
+            const chatWindow = document.getElementById('chat-window');
             const isMe = msg.user === username;
 
             const msgHtml = `
@@ -124,8 +117,8 @@ const app = initializeApp(firebaseConfig);
                     </div>
                 </div>
             `;
-            window.insertAdjacentHTML('beforeend', msgHtml);
-            window.scrollTop = window.scrollHeight;
+            chatWindow.insertAdjacentHTML('beforeend', msgHtml);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
         }
     </script>
 </body>
