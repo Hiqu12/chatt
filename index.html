@@ -357,6 +357,9 @@
       const database = firebase.database();
       const chatRef = database.ref("messages");
 
+      // Setup Notification Sound
+      const notificationSound = new Audio('https://raw.githubusercontent.com/Free-Audio-Samples/Free-Audio-Samples.github.io/main/pop.mp3');
+
       let myProfile = JSON.parse(localStorage.getItem("aura-profile")) || {
         name: "New Member",
         about: "Using Aura Elite",
@@ -373,6 +376,8 @@
         Notification.requestPermission().then((permission) => {
           if (permission === "granted") {
             btn.classList.replace("text-indigo-400", "text-green-400");
+            // Test sound on enable
+            notificationSound.play();
             new Notification("Aura Chat", {
               body: "Notifications enabled successfully!",
               icon: myProfile.pfp,
@@ -381,15 +386,13 @@
         });
       }
 
-function sendNotification(msg) {
-    // Play sound and show notification if tab is hidden
-    if (document.visibilityState === "hidden") {
-        
-        // The "Pop" sound
-        notificationSound.currentTime = 0; // Resets sound to start so it can play rapidly
-        notificationSound.play().catch(e => console.log("Sound pending user interaction"));
+      function sendNotification(msg) {
+        // Play sound when tab is hidden or open
+        notificationSound.currentTime = 0;
+        notificationSound.play().catch(e => console.log("Interaction required for audio"));
 
-        if (Notification.permission === "granted") {
+        // Only show visual popup if tab is hidden
+        if (document.visibilityState === "hidden" && Notification.permission === "granted") {
             const notification = new Notification(`New Message from ${msg.user}`, {
                 body: msg.text || (msg.image ? "Sent an image" : "Sent a voice message"),
                 icon: msg.pfp || myProfile.pfp
@@ -400,8 +403,7 @@ function sendNotification(msg) {
                 this.close();
             };
         }
-    }
-}
+      }
 
       // --- SEARCH LOGIC ---
       function toggleSearch() {
@@ -540,7 +542,7 @@ function sendNotification(msg) {
         const isMe = msg.user === myProfile.name;
         const searchText = msg.text || "";
 
-        // Send Push Notification if message is from someone else
+        // Play sound if message is from someone else
         if (!isMe) {
           sendNotification(msg);
         }
