@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AURA Chat | Real-Time</title>
+    <title>AURA Master | Ultimate</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -11,44 +11,86 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
     <style>
-        body { background: #0f172a; font-family: 'Inter', sans-serif; overflow: hidden; }
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
-        .message-in { animation: slideIn 0.2s ease-out; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        #chat-window::-webkit-scrollbar { width: 4px; }
-        #chat-window::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        body { background: #020617; font-family: 'Inter', sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; color: white; }
+        .glass { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .message-in { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Drawer and Menu */
+        #settings-drawer { transform: translateX(-100%); transition: transform 0.3s ease-in-out; }
+        #settings-drawer.open { transform: translateX(0); }
+        #context-menu { display: none; position: fixed; z-index: 100; width: 180px; background: #1e293b; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .menu-item { padding: 12px; color: white; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        
+        .voice-bubble { display: flex; align-items: center; gap: 10px; min-width: 150px; }
+        .play-btn { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); }
+        .notif-active { color: #22c55e !important; animation: none !important; }
+        .online-dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; border: 2px solid #020617; }
     </style>
 </head>
-<body class="flex flex-col h-screen">
+<body class="flex flex-col h-screen" onclick="hideMenu()">
 
-    <nav class="glass sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">AC</div>
-            <div>
-                <h1 class="text-white font-bold text-sm">AURA CHAT</h1>
-                <p class="text-[10px] text-green-400 flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span> Live
-                </p>
+    <div id="settings-drawer" class="fixed inset-0 z-[200] bg-[#020617] p-6 flex flex-col">
+        <div class="flex items-center justify-between mb-8">
+            <h2 class="text-xl font-bold text-indigo-400">Profile Settings</h2>
+            <button onclick="toggleSettings()" class="text-3xl text-slate-500">&times;</button>
+        </div>
+        <div class="flex flex-col items-center mb-6">
+            <div class="relative">
+                <img id="pfp-preview" src="https://ui-avatars.com/api/?name=User&background=6366f1&color=fff" class="w-24 h-24 rounded-full object-cover border-2 border-indigo-500/50">
+                <label class="absolute bottom-0 right-0 bg-indigo-600 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer border-2 border-[#020617]">
+                    <i class="fa-solid fa-camera text-xs"></i>
+                    <input type="file" id="pfp-input" accept="image/*" class="hidden" onchange="previewPFP(this)">
+                </label>
             </div>
         </div>
-        <button onclick="changeName()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-user-gear"></i></button>
+        <div class="space-y-4">
+            <input type="text" id="user-name-input" placeholder="Display Name" class="w-full bg-white/5 border border-white/10 p-3 rounded-xl outline-none focus:border-indigo-500">
+            <textarea id="user-about-input" placeholder="About you..." class="w-full bg-white/5 border border-white/10 p-3 rounded-xl outline-none focus:border-indigo-500"></textarea>
+            <button onclick="saveProfile()" class="w-full bg-indigo-600 py-3 rounded-xl font-bold">Save & Close</button>
+        </div>
+    </div>
+
+    <div id="context-menu">
+        <div class="menu-item" onclick="deleteLocal()"><i class="fa-solid fa-eye-slash"></i> Hide for me</div>
+        <div class="menu-item text-red-400" id="del-everyone-btn" onclick="deleteEveryone()"><i class="fa-solid fa-trash"></i> Delete Global</div>
+    </div>
+
+    <audio id="notif-sound" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3" type="audio/mpeg">
+    </audio>
+
+    <nav class="glass sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="toggleSettings()">
+            <div class="relative">
+                <img id="nav-pfp" src="https://ui-avatars.com/api/?name=U&background=6366f1&color=fff" class="w-10 h-10 rounded-full object-cover">
+                <div id="status-dot" class="absolute bottom-0 right-0 online-dot"></div>
+            </div>
+            <div>
+                <h1 id="header-name" class="text-white font-bold text-sm uppercase tracking-tight">Aura Master</h1>
+                <p id="status-text" class="text-[9px] text-slate-500 font-bold uppercase">Connecting...</p>
+            </div>
+        </div>
+        <button onclick="enableNotifications(this)" id="notif-master" class="w-10 h-10 rounded-full bg-white/5 text-indigo-400 animate-pulse transition-all">
+            <i class="fa-solid fa-bell"></i>
+        </button>
     </nav>
 
-    <main id="chat-window" class="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col pt-6">
-        </main>
+    <main id="chat-window" class="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col pt-6"></main>
 
-    <footer class="p-4 glass rounded-t-3xl">
-        <form id="chat-form" class="flex items-center gap-3 bg-slate-900/50 p-2 rounded-2xl border border-slate-700">
-            <input type="text" id="msg-input" autocomplete="off" placeholder="Type a message..." 
-                class="flex-1 bg-transparent border-none outline-none text-white px-3 py-2 text-sm placeholder:text-slate-500">
-            <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95">
-                <i class="fa-solid fa-paper-plane"></i>
-            </button>
+    <footer class="p-4 pb-8 glass">
+        <div id="rec-ui" class="hidden text-center text-red-500 text-[10px] font-bold mb-2">● RECORDING AUDIO</div>
+        <form id="chat-form" class="flex items-center gap-2">
+            <div class="flex items-center flex-1 bg-white/5 p-1 rounded-2xl border border-white/10">
+                <label class="p-2 text-slate-400"><i class="fa-solid fa-camera"></i><input type="file" id="img-input" accept="image/*" class="hidden" onchange="handleImage(this)"></label>
+                <input type="text" id="msg-input" placeholder="Message..." class="flex-1 bg-transparent outline-none text-white px-2 py-2 text-sm">
+                <button type="button" id="voice-btn" class="p-2 text-slate-400"><i class="fa-solid fa-microphone"></i></button>
+            </div>
+            <button type="submit" class="bg-indigo-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg"><i class="fa-solid fa-paper-plane"></i></button>
         </form>
     </footer>
 
     <script>
-        // 1. FIXED FIREBASE CONFIGURATION
         const firebaseConfig = {
             apiKey: "AIzaSyA9416w8O1q6klrhL5IvWKpSIgPr0uehiQ",
             authDomain: "aurachat-44bd9.firebaseapp.com",
@@ -56,70 +98,192 @@
             storageBucket: "aurachat-44bd9.firebasestorage.app",
             messagingSenderId: "1028646459032",
             appId: "1:1028646459032:web:a8951d3effa007cfa2a2ed",
-            databaseURL: "https://aurachat-44bd9-default-rtdb.firebaseio.com" // Important: Added your DB URL
+            databaseURL: "https://aurachat-44bd9-default-rtdb.firebaseio.com"
         };
 
-        // Initialize Firebase using the Compat method
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         const chatRef = database.ref('messages');
+        const statusRef = database.ref('status');
 
-        // 2. USER IDENTITY
-        let username = localStorage.getItem('chat-user') || "User_" + Math.floor(Math.random() * 1000);
-        if(!localStorage.getItem('chat-user')) localStorage.setItem('chat-user', username);
+        // Load local profile or create new
+        let myProfile = JSON.parse(localStorage.getItem('aura-profile')) || {
+            name: "User_" + Math.floor(Math.random() * 1000),
+            pfp: `https://ui-avatars.com/api/?name=U&background=6366f1&color=fff`,
+            about: "Using Aura Master"
+        };
+        const username = myProfile.name;
 
-        function changeName() {
-            let newName = prompt("Enter your display name:", username);
-            if(newName) {
-                username = newName;
-                localStorage.setItem('chat-user', username);
-                location.reload(); // Refresh to update messages identity
+        function updateHeader() {
+            document.getElementById('header-name').innerText = myProfile.name;
+            document.getElementById('nav-pfp').src = myProfile.pfp;
+            document.getElementById('user-name-input').value = myProfile.name;
+            document.getElementById('user-about-input').value = myProfile.about;
+            document.getElementById('pfp-preview').src = myProfile.pfp;
+        }
+
+        function toggleSettings() { document.getElementById('settings-drawer').classList.toggle('open'); }
+        
+        function previewPFP(input) {
+            if (input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    document.getElementById('pfp-preview').src = e.target.result;
+                    myProfile.pfp = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
             }
         }
 
-        // 3. SENDING MESSAGES
-        const form = document.getElementById('chat-form');
-        const input = document.getElementById('msg-input');
+        function saveProfile() {
+            myProfile.name = document.getElementById('user-name-input').value;
+            myProfile.about = document.getElementById('user-about-input').value;
+            localStorage.setItem('aura-profile', JSON.stringify(myProfile));
+            updateHeader();
+            toggleSettings();
+        }
 
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            if(input.value.trim() === "") return;
-
-            const messageData = {
-                user: username,
-                text: input.value,
-                timestamp: Date.now()
-            };
-
-            chatRef.push(messageData);
-            input.value = "";
+        // --- ONLINE STATUS LOGIC ---
+        const myStatusRef = database.ref('status/' + username);
+        database.ref('.info/connected').on('value', (snapshot) => {
+            if (snapshot.val() === true) {
+                myStatusRef.onDisconnect().set({ state: 'offline', last_seen: Date.now() });
+                myStatusRef.set({ state: 'online', last_seen: Date.now() });
+            }
         });
 
-        // 4. RECEIVING MESSAGES
+        statusRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            for (let user in data) {
+                if (user !== username) {
+                    const s = data[user];
+                    const txt = document.getElementById('status-text');
+                    const dot = document.getElementById('status-dot');
+                    if (s.state === 'online') {
+                        txt.innerText = "Online";
+                        txt.className = "text-[9px] text-green-500 font-bold";
+                        dot.style.background = "#22c55e";
+                    } else {
+                        txt.innerText = "Last seen: " + new Date(s.last_seen).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        txt.className = "text-[9px] text-slate-500 font-bold";
+                        dot.style.background = "#64748b";
+                    }
+                }
+            }
+        });
+
+        // --- NOTIFICATION & CHAT LOGIC ---
+        let isNotifEnabled = false;
+        function enableNotifications(btn) {
+            const audio = document.getElementById('notif-sound');
+            audio.play().then(() => { audio.pause(); audio.currentTime = 0; });
+            Notification.requestPermission().then(perm => {
+                if(perm === 'granted') {
+                    isNotifEnabled = true;
+                    btn.classList.add('notif-active');
+                    btn.innerHTML = '<i class="fa-solid fa-bell-check"></i>';
+                }
+            });
+        }
+
+        function triggerAlert(msg) {
+            if (msg.user !== myProfile.name) {
+                document.getElementById('notif-sound').play().catch(e => {});
+                if (document.visibilityState === 'hidden' && isNotifEnabled) {
+                    new Notification(`Aura: ${msg.user}`, { body: msg.text || "Sent a file" });
+                }
+            }
+        }
+
+        // --- DELETION ---
+        let selectedMsgKey = null, pressTimer;
+        function startPress(key, isMe) { pressTimer = setTimeout(() => showMenu(key, isMe), 600); }
+        function cancelPress() { clearTimeout(pressTimer); }
+        function showMenu(key, isMe) {
+            selectedMsgKey = key;
+            const menu = document.getElementById('context-menu');
+            document.getElementById('del-everyone-btn').style.display = isMe ? 'flex' : 'none';
+            menu.style.display = 'block'; menu.style.top = '50%'; menu.style.left = '50%'; menu.style.transform = 'translate(-50%, -50%)';
+        }
+        function hideMenu() { document.getElementById('context-menu').style.display = 'none'; }
+        function deleteLocal() { document.getElementById('msg-' + selectedMsgKey).style.display = 'none'; hideMenu(); }
+        function deleteEveryone() { database.ref('messages/' + selectedMsgKey).remove(); hideMenu(); }
+
+        // --- MESSAGE CORE ---
+        function sendMsg(text, image = null, audio = null) {
+            chatRef.push({ 
+                user: myProfile.name, 
+                pfp: myProfile.pfp,
+                text, image, audio, 
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+            });
+        }
+
         chatRef.on('child_added', (snapshot) => {
             const msg = snapshot.val();
-            displayMessage(msg);
+            const key = snapshot.key;
+            const isMe = msg.user === myProfile.name;
+            
+            let content = msg.text ? `<p>${msg.text}</p>` : (msg.image ? `<img src="${msg.image}" class="rounded-lg max-h-48">` : `
+                <div class="voice-bubble" onclick="new Audio('${msg.audio}').play()">
+                    <div class="play-btn"><i class="fa-solid fa-play text-xs"></i></div>
+                    <div class="flex-1 h-1 bg-white/20 rounded-full"></div>
+                </div>`);
+
+            const html = `
+                <div id="msg-${key}" class="flex ${isMe ? 'justify-end' : 'justify-start'} items-end gap-2 message-in" 
+                    onmousedown="startPress('${key}', ${isMe})" onmouseup="cancelPress()" 
+                    ontouchstart="startPress('${key}', ${isMe})" ontouchend="cancelPress()">
+                    ${!isMe ? `<img src="${msg.pfp}" class="w-6 h-6 rounded-full mb-4 shadow-lg">` : ''}
+                    <div class="max-w-[80%]">
+                        <div class="px-3 py-2 rounded-2xl text-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-200 rounded-tl-none border border-white/5'}">
+                            ${content}
+                        </div>
+                        <p class="text-[8px] text-slate-500 mt-1 ${isMe ? 'text-right' : ''}">${msg.user} • ${msg.time}</p>
+                    </div>
+                </div>`;
+            document.getElementById('chat-window').insertAdjacentHTML('beforeend', html);
+            document.getElementById('chat-window').scrollTop = document.getElementById('chat-window').scrollHeight;
+            triggerAlert(msg);
         });
 
-        function displayMessage(msg) {
-            const chatWindow = document.getElementById('chat-window');
-            const isMe = msg.user === username;
+        chatRef.on('child_removed', (snapshot) => {
+            const el = document.getElementById('msg-' + snapshot.key);
+            if(el) el.remove();
+        });
 
-            const msgHtml = `
-                <div class="flex ${isMe ? 'justify-end' : 'justify-start'} message-in">
-                    <div class="max-w-[80%]">
-                        <p class="text-[10px] text-slate-500 mb-1 px-2 ${isMe ? 'text-right' : 'text-left'}">${msg.user}</p>
-                        <div class="px-4 py-2 rounded-2xl text-sm shadow-lg ${
-                            isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-200 rounded-tl-none'
-                        }">
-                            ${msg.text}
-                        </div>
-                    </div>
-                </div>
-            `;
-            chatWindow.insertAdjacentHTML('beforeend', msgHtml);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
+        // --- VOICE/IMAGE ---
+        let mediaRecorder, chunks = [];
+        const vBtn = document.getElementById('voice-btn');
+        vBtn.onmousedown = vBtn.ontouchstart = async (e) => {
+            e.preventDefault();
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = e => chunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const reader = new FileReader();
+                reader.readAsDataURL(new Blob(chunks));
+                reader.onloadend = () => sendMsg(null, null, reader.result);
+                chunks = [];
+            };
+            mediaRecorder.start();
+            document.getElementById('rec-ui').classList.remove('hidden');
+        };
+        vBtn.onmouseup = vBtn.ontouchend = () => { mediaRecorder?.stop(); document.getElementById('rec-ui').classList.add('hidden'); };
+
+        function handleImage(input) {
+            const reader = new FileReader();
+            reader.onload = e => sendMsg(null, e.target.result);
+            reader.readAsDataURL(input.files[0]);
         }
+
+        document.getElementById('chat-form').onsubmit = (e) => {
+            e.preventDefault();
+            const input = document.getElementById('msg-input');
+            if(input.value.trim()) { sendMsg(input.value); input.value = ""; }
+        };
+
+        updateHeader();
     </script>
 </body>
 </html>
