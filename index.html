@@ -7,6 +7,7 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>Our Chat</title>
+    <link rel="shortcut icon" href="logo-diamond.JPG" type="image/png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       rel="stylesheet"
@@ -213,14 +214,14 @@
         class="p-4 text-sm hover:bg-white/5 cursor-pointer flex items-center gap-3"
         onclick="deleteLocal()"
       >
-        <i class="fa-solid fa-eye-slash text-slate-400"></i> Hide for me
+        <i class="fa-solid fa-eye-slash text-slate-400"></i> Delete for me
       </div>
       <div
         class="p-4 text-sm hover:bg-white/5 cursor-pointer text-red-400 flex items-center gap-3 border-t border-white/5"
         id="del-everyone-btn"
         onclick="deleteEveryone()"
       >
-        <i class="fa-solid fa-trash"></i> Delete Global
+        <i class="fa-solid fa-trash"></i> Delete
       </div>
     </div>
 
@@ -263,8 +264,9 @@
             <i class="fa-solid fa-search"></i>
           </button>
           <button
+            id="notif-bell"
             onclick="enableNotifications(this)"
-            class="w-10 h-10 rounded-xl flex items-center justify-center text-indigo-400"
+            class="w-10 h-10 rounded-xl flex items-center justify-center text-indigo-400 transition-colors"
           >
             <i class="fa-solid fa-bell"></i>
           </button>
@@ -360,6 +362,47 @@
         about: "Using Aura Elite",
         pfp: `https://ui-avatars.com/api/?name=User&background=6366f1&color=fff`,
       };
+
+      // --- NOTIFICATION LOGIC ---
+      function enableNotifications(btn) {
+        if (!("Notification" in window)) {
+          alert("This browser does not support desktop notifications");
+          return;
+        }
+
+        Notification.requestPermission().then((permission) => {
+          if (permission === "granted") {
+            btn.classList.replace("text-indigo-400", "text-green-400");
+            new Notification("Aura Chat", {
+              body: "Notifications enabled successfully!",
+              icon: myProfile.pfp,
+            });
+          }
+        });
+      }
+
+      function sendNotification(msg) {
+        // Only notify if window is not focused and permission is granted
+        if (
+          document.visibilityState === "hidden" &&
+          Notification.permission === "granted"
+        ) {
+          const notification = new Notification(
+            `New Message from ${msg.user}`,
+            {
+              body:
+                msg.text ||
+                (msg.image ? "Sent an image" : "Sent a voice message"),
+              icon: msg.pfp || myProfile.pfp,
+            }
+          );
+
+          notification.onclick = function () {
+            window.focus();
+            this.close();
+          };
+        }
+      }
 
       // --- SEARCH LOGIC ---
       function toggleSearch() {
@@ -482,11 +525,26 @@
         });
       }
 
+      function handleImage(input) {
+        if (input.files && input.files[0]) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            sendMsg(null, e.target.result);
+          };
+          reader.readAsDataURL(input.files[0]);
+        }
+      }
+
       chatRef.on("child_added", (snapshot) => {
         const msg = snapshot.val();
         const key = snapshot.key;
         const isMe = msg.user === myProfile.name;
         const searchText = msg.text || "";
+
+        // Send Push Notification if message is from someone else
+        if (!isMe) {
+          sendNotification(msg);
+        }
 
         let content = msg.text
           ? `<p class="leading-relaxed">${msg.text}</p>`
@@ -572,6 +630,13 @@
         document.getElementById("user-name-input").value = myProfile.name;
         document.getElementById("user-about-input").value = myProfile.about;
         document.getElementById("pfp-preview").src = myProfile.pfp;
+
+        // Check for existing notification permission to set bell color
+        if (Notification.permission === "granted") {
+          document
+            .getElementById("notif-bell")
+            .classList.replace("text-indigo-400", "text-green-400");
+        }
       }
 
       // --- OTHER UTILS ---
