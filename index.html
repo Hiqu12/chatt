@@ -381,28 +381,27 @@
         });
       }
 
-      function sendNotification(msg) {
-        // Only notify if window is not focused and permission is granted
-        if (
-          document.visibilityState === "hidden" &&
-          Notification.permission === "granted"
-        ) {
-          const notification = new Notification(
-            `New Message from ${msg.user}`,
-            {
-              body:
-                msg.text ||
-                (msg.image ? "Sent an image" : "Sent a voice message"),
-              icon: msg.pfp || myProfile.pfp,
-            }
-          );
+function sendNotification(msg) {
+    // Play sound and show notification if tab is hidden
+    if (document.visibilityState === "hidden") {
+        
+        // The "Pop" sound
+        notificationSound.currentTime = 0; // Resets sound to start so it can play rapidly
+        notificationSound.play().catch(e => console.log("Sound pending user interaction"));
 
-          notification.onclick = function () {
-            window.focus();
-            this.close();
-          };
+        if (Notification.permission === "granted") {
+            const notification = new Notification(`New Message from ${msg.user}`, {
+                body: msg.text || (msg.image ? "Sent an image" : "Sent a voice message"),
+                icon: msg.pfp || myProfile.pfp
+            });
+            
+            notification.onclick = function() {
+                window.focus();
+                this.close();
+            };
         }
-      }
+    }
+}
 
       // --- SEARCH LOGIC ---
       function toggleSearch() {
